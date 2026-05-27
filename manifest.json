@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "IRD Nepal PAN Filing Status Checker",
+  "version": "2.0.0",
+  "description": "Bulk-check PAN filing status on ird.gov.np. Runs in background — works even when popup is closed.",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://ird.gov.np/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "IRD PAN Checker"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://ird.gov.np/pan-search/*", "https://ird.gov.np/pan-search"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*.png"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

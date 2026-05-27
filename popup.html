@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IRD PAN Checker</title>
+<script src="xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0e100e;
+    --s1: #141714;
+    --s2: #1b1e1b;
+    --border: #272b27;
+    --border2: #323832;
+    --green: #4ade80;
+    --green-dim: #4ade8018;
+    --green-mid: #166534;
+    --red: #f87171;
+    --red-dim: #f8717118;
+    --blue: #60a5fa;
+    --blue-dim: #60a5fa18;
+    --amber: #fbbf24;
+    --amber-dim: #fbbf2418;
+    --text: #e2e8e2;
+    --text2: #8a988a;
+    --text3: #4a544a;
+    --mono: 'Courier New', monospace;
+    --r: 5px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    width: 440px;
+    min-height: 560px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  /* HEADER */
+  .header {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--s1);
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-box {
+    background: var(--green-dim);
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 6px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+  }
+  .logo-title { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+  .logo-sub { font-size: 10px; color: var(--text3); }
+  .dot-live {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 10px; color: var(--green);
+    padding: 3px 8px;
+    background: var(--green-dim);
+    border: 1px solid var(--green-mid);
+    border-radius: 20px;
+  }
+  .dot-live::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--s1);
+  }
+  .tab {
+    flex: 1;
+    padding: 8px 0;
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab.active { color: var(--green); border-bottom-color: var(--green); }
+  .tab-panel { display: none; padding: 14px 16px; }
+  .tab-panel.active { display: block; }
+
+  /* UPLOAD */
+  .drop-zone {
+    border: 2px dashed var(--border2);
+    border-radius: var(--r);
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag { border-color: var(--green); background: var(--green-dim); }
+  .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .drop-icon { font-size: 24px; margin-bottom: 8px; }
+  .drop-title { font-size: 12px; color: var(--text); margin-bottom: 3px; }
+  .drop-sub { font-size: 10px; color: var(--text3); }
+
+  /* FIELD */
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 10px; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; }
+  .field input {
+    width: 100%;
+    background: var(--s2);
+    border: 1px solid var(--border2);
+    border-radius: var(--r);
+    color: var(--text);
+    padding: 7px 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    outline: none;
+  }
+  .field input:focus { border-color: var(--green); }
+
+  /* STATS ROW */
+  .stats { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+  .stat {
+    display: flex; align-items: center; gap: 5px;
+    padding: 3px 8px;
+    background: var(--s2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 10px;
+  }
+  .d { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .d-g { background: var(--green); }
+  .d-r { background: var(--red); }
+  .d-b { background: var(--blue); }
+  .d-a { background: var(--amber); }
+  .d-x { background: var(--text3); }
+  .stat span:last-child { color: var(--text2); }
+  .stat strong { color: var(--text); }
+
+  /* PROGRESS BAR */
+  .prog-wrap { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin: 8px 0; }
+  .prog-bar { height: 100%; background: var(--green); width: 0%; transition: width 0.35s ease; border-radius: 2px; }
+
+  /* LOG */
+  .log {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 8px 10px;
+    height: 110px;
+    overflow-y: auto;
+    font-size: 10px;
+    line-height: 1.9;
+    margin: 8px 0;
+  }
+  .log-line { display: flex; gap: 6px; }
+  .log-t { color: var(--text3); flex-shrink: 0; }
+  .c-g { color: var(--green); }
+  .c-r { color: var(--red); }
+  .c-b { color: var(--blue); }
+  .c-a { color: var(--amber); }
+  .c-x { color: var(--text2); }
+
+  /* BUTTONS */
+  .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 7px 14px;
+    border-radius: var(--r);
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.3px;
+  }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-go { background: var(--green); color: #071207; }
+  .btn-go:hover:not(:disabled) { background: #6ee7a0; }
+  .btn-stop { background: transparent; color: var(--red); border: 1px solid var(--red); }
+  .btn-stop:hover:not(:disabled) { background: var(--red-dim); }
+  .btn-dl { background: transparent; color: var(--blue); border: 1px solid var(--blue); }
+  .btn-dl:hover:not(:disabled) { background: var(--blue-dim); }
+  .btn-sm { background: transparent; color: var(--text2); border: 1px solid var(--border2); font-size: 10px; padding: 5px 10px; }
+  .btn-sm:hover:not(:disabled) { border-color: var(--text2); color: var(--text); }
+
+  /* RESULTS LIST */
+  .results-list { max-height: 260px; overflow-y: auto; }
+  .result-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-row:hover { background: var(--s2); }
+  .r-pan { color: var(--text); font-weight: 700; }
+  .r-year { color: var(--text3); font-size: 10px; }
+  .tag {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 2px 7px;
+    border-radius: 20px;
+    text-transform: uppercase;
+  }
+  .tag-f  { background: var(--green-dim); color: var(--green);  border: 1px solid var(--green-mid); }
+  .tag-nf { background: var(--red-dim);   color: var(--red);    border: 1px solid #7f1d1d; }
+  .tag-c  { background: var(--blue-dim);  color: var(--blue);   border: 1px solid #1e3a5f; }
+  .tag-e  { background: var(--amber-dim); color: var(--amber);  border: 1px solid #78350f; }
+  .tag-p  { color: var(--text3); border: 1px solid var(--border2); }
+
+  /* CAPTCHA NOTICE */
+  .captcha-notice {
+    display: none;
+    background: var(--blue-dim);
+    border: 1px solid var(--blue);
+    border-radius: var(--r);
+    padding: 10px 12px;
+    margin: 8px 0;
+    font-size: 11px;
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .captcha-notice strong { color: var(--blue); }
+
+  /* NOTICE BOX */
+  .notice {
+    background: var(--s2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 10px 12px;
+    font-size: 10px;
+    color: var(--text2);
+    line-height: 1.7;
+    margin-bottom: 10px;
+  }
+  .notice strong { color: var(--green); }
+
+  /* SECTION LABEL */
+  .sec-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text3);
+    margin-bottom: 8px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .empty { text-align: center; padding: 28px 16px; color: var(--text3); font-size: 11px; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-box">IRD</div>
+    <div>
+      <div class="logo-title">PAN Filing Checker</div>
+      <div class="logo-sub">ird.gov.np · Nepal</div>
+    </div>
+  </div>
+  <div class="dot-live">LIVE</div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" data-tab="check">Check PANs</div>
+  <div class="tab" data-tab="results">Results</div>
+  <div class="tab" data-tab="help">Help</div>
+</div>
+
+<!-- TAB: CHECK -->
+<div class="tab-panel active" id="tab-check">
+
+  <div class="notice">
+    This extension opens IRD directly in a background tab — <strong>no popups, no CORS blocks</strong>. It fills the PAN, reads the result, and moves to the next one automatically.
+  </div>
+
+  <div class="sec-label">01 — Upload Excel File</div>
+  <div class="drop-zone" id="drop-zone">
+    <input type="file" id="file-input" accept=".xlsx,.xls"/>
+    <div class="drop-icon">📂</div>
+    <div class="drop-title">Drop Excel file here or click to browse</div>
+    <div class="drop-sub">Needs a PAN_NUMBER column · .xlsx / .xls</div>
+  </div>
+  <div id="file-name" style="font-size:10px;color:var(--text3);margin:5px 0 10px;">No file loaded</div>
+
+  <div class="field">
+    <label>PAN Column Name</label>
+    <input type="text" id="pan-col" value="PAN_NUMBER" placeholder="PAN_NUMBER"/>
+  </div>
+  <div class="field">
+    <label>Delay Between Checks (seconds)</label>
+    <input type="number" id="delay-s" value="4" min="2" max="20"/>
+  </div>
+
+  <div class="sec-label">02 — Progress</div>
+
+  <div class="captcha-notice" id="captcha-notice">
+    <strong>⚠ CAPTCHA REQUIRED</strong> — Switch to the IRD tab (<strong id="tab-hint">click here</strong>), solve the CAPTCHA, then come back. Checking resumes in <strong id="captcha-countdown">30</strong>s automatically.
+  </div>
+
+  <div class="prog-wrap"><div class="prog-bar" id="prog-bar"></div></div>
+
+  <div class="stats">
+    <div class="stat"><div class="d d-g"></div><strong id="c-f">0</strong><span>filer</span></div>
+    <div class="stat"><div class="d d-r"></div><strong id="c-nf">0</strong><span>non-filer</span></div>
+    <div class="stat"><div class="d d-b"></div><strong id="c-c">0</strong><span>captcha</span></div>
+    <div class="stat"><div class="d d-a"></div><strong id="c-e">0</strong><span>error</span></div>
+    <div class="stat"><div class="d d-x"></div><strong id="c-p">0</strong><span>pending</span></div>
+  </div>
+
+  <div class="log" id="log">
+    <div class="log-line"><span class="log-t">--:--:--</span><span class="c-x">Ready. Load a file to start.</span></div>
+  </div>
+
+  <div class="btns">
+    <button class="btn btn-go"  id="btn-start"  disabled>▶ Start</button>
+    <button class="btn btn-stop" id="btn-stop"  disabled>■ Stop</button>
+    <button class="btn btn-dl"  id="btn-dl"    disabled>↓ Export Excel</button>
+    <button class="btn btn-sm"  id="btn-reset">↺ Reset</button>
+  </div>
+</div>
+
+<!-- TAB: RESULTS -->
+<div class="tab-panel" id="tab-results">
+  <div class="sec-label">Results Table</div>
+  <div class="results-list" id="results-list">
+    <div class="empty">No results yet. Run a check first.</div>
+  </div>
+</div>
+
+<!-- TAB: HELP -->
+<div class="tab-panel" id="tab-help">
+  <div class="sec-label">How to use</div>
+  <div class="notice" style="margin-bottom:10px;">
+    <strong>Excel format required:</strong><br/>
+    • Sheet name: <strong>PAN Filing Status</strong> (or first sheet)<br/>
+    • Required column: <strong>PAN_NUMBER</strong><br/>
+    • Optional columns auto-filled: FILING_STATUS, FILER_YEAR, REMARKS<br/>
+    • Already-resolved PANs are skipped automatically
+  </div>
+  <div class="notice" style="margin-bottom:10px;">
+    <strong>How it works:</strong><br/>
+    1. Extension opens ird.gov.np in a background tab<br/>
+    2. Fills each PAN into the search form automatically<br/>
+    3. Reads the result (FILER / NON-FILER) from the page<br/>
+    4. Waits the configured delay, then checks the next PAN<br/>
+    5. If CAPTCHA appears, you are prompted to solve it once
+  </div>
+  <div class="notice">
+    <strong>CAPTCHA handling:</strong><br/>
+    When CAPTCHA appears, a notice shows in this popup. Click the link to switch to the IRD tab, solve the CAPTCHA, then return here — checking resumes automatically after 30 seconds.
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
